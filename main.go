@@ -33,6 +33,21 @@ func main() {
 		}
 
 		switch r.Method {
+		case http.MethodGet:
+			for i, product := range products {
+				if id == product.ID {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(map[string]any{
+						"status": "success",
+						"data":   products[i],
+					})
+					return
+				}
+			}
+
+			// didnt found
+			http.Error(w, "product is not found", http.StatusNotFound)
 		case http.MethodPut:
 			// find the product
 			for i, product := range products {
