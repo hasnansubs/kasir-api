@@ -1,12 +1,28 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"kasir-api/database"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
 )
+
+// CONFIG
+type Config struct {
+	PORT        string `mapstructure:"APP_PORT"`
+	DB_USER     string `mapstructure:"DB_USERNAME"`
+	DB_HOST     string `mapstructure:"DB_HOST"`
+	DB_PASSWORD string `mapstructure:"DB_PASSWORD"`
+	DB_PORT     string `mapstructure:"DB_PORT"`
+	DB_NAME     string `mapstructure:"DB_NAME"`
+}
 
 // PRODUCT
 type Product struct {
@@ -85,7 +101,7 @@ func deleteProduct(id int, w http.ResponseWriter, _ *http.Request) {
 	http.Error(w, "product is not found", http.StatusNotFound)
 }
 
-func getProductById(id int, w http.ResponseWriter, r *http.Request) {
+func getProductById(id int, w http.ResponseWriter, _ *http.Request) {
 	for i, product := range products {
 		if id == product.ID {
 			w.Header().Set("Content-Type", "application/json")
@@ -178,7 +194,7 @@ func deleteCategory(id int, w http.ResponseWriter, _ *http.Request) {
 	http.Error(w, "category is not found", http.StatusNotFound)
 }
 
-func getCategoryById(id int, w http.ResponseWriter, r *http.Request) {
+func getCategoryById(id int, w http.ResponseWriter, _ *http.Request) {
 	for i, category := range categories {
 		if id == category.ID {
 			w.Header().Set("Content-Type", "application/json")
@@ -196,8 +212,32 @@ func getCategoryById(id int, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	viper.AutomaticEnv()
+	// viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if _, err := os.Stat(".env"); err == nil {
+		viper.SetConfigFile(".env")
+		_ = viper.ReadInConfig()
+	}
+
+	config := Config{
+		PORT:        viper.GetString("APP_PORT"),
+		DB_USER:     viper.GetString("DB_USERNAME"),
+		DB_PASSWORD: viper.GetString("DB_PASSWORD"),
+		DB_HOST:     viper.GetString("DB_HOST"),
+		DB_PORT:     viper.GetString("DB_PORT"),
+		DB_NAME:     viper.GetString("DB_NAME"),
+	}
+
+	connStr := fmt.Sprintf("postgresql://%v:%v@%v:%v/%v", config.DB_USER, config.DB_PASSWORD, config.DB_HOST, config.DB_PORT, config.DB_NAME)
+	db, err := database.InitDB(connStr)
+	if err != nil {
+		log.Fatal("failed to initialize database:", err.Error())
+	}
+	defer db.Close(context.Background())
+
 	fmt.Println("starting kasir-api server....")
-	fmt.Println("server running on 8080")
+	fmt.Printf("server running on %v", config.PORT)
 
 	// /api/products/{id}
 	http.HandleFunc("/api/products/", func(w http.ResponseWriter, r *http.Request) {
@@ -253,7 +293,7 @@ func main() {
 		}
 	})
 
-	err := http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(config.PORT, nil)
 	if err != nil {
 		fmt.Print("failed to start the server")
 	}
