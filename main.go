@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"kasir-api/database"
+	"kasir-api/models"
 	"log"
 	"net/http"
 	"os"
@@ -25,14 +26,8 @@ type Config struct {
 }
 
 // PRODUCT
-type Product struct {
-	ID    int    `json:"id"`
-	Name  string `json:"name"`
-	Price int    `json:"price"`
-	Stock int    `json:"stock"`
-}
 
-var products = []Product{
+var products = []models.Product{
 	{ID: 1, Name: "Indomie Goreng", Price: 3500, Stock: 10},
 	{ID: 2, Name: "Vit 1000mL", Price: 3000, Stock: 40},
 }
@@ -44,7 +39,7 @@ func getProducts(w http.ResponseWriter, _ *http.Request) {
 }
 
 func addProduct(w http.ResponseWriter, r *http.Request) {
-	var newProduct Product
+	var newProduct models.Product
 	err := json.NewDecoder(r.Body).Decode(&newProduct)
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -66,7 +61,7 @@ func editProduct(id int, w http.ResponseWriter, r *http.Request) {
 	// find the product
 	for i, product := range products {
 		if id == product.ID {
-			var updatedProduct Product
+			var updatedProduct models.Product
 			err := json.NewDecoder(r.Body).Decode(&updatedProduct)
 			if err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)
