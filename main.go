@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"kasir-api/database"
-	"kasir-api/models"
+	"kasir-api/handlers"
+	"kasir-api/repositories"
+	"kasir-api/services"
 	"log"
 	"net/http"
 	"os"
@@ -23,94 +25,6 @@ type Config struct {
 	DB_PASSWORD string `mapstructure:"DB_PASSWORD"`
 	DB_PORT     string `mapstructure:"DB_PORT"`
 	DB_NAME     string `mapstructure:"DB_NAME"`
-}
-
-// PRODUCT
-
-var products = []models.Product{
-	{ID: 1, Name: "Indomie Goreng", Price: 3500, Stock: 10},
-	{ID: 2, Name: "Vit 1000mL", Price: 3000, Stock: 40},
-}
-
-func getProducts(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(products)
-}
-
-func addProduct(w http.ResponseWriter, r *http.Request) {
-	var newProduct models.Product
-	err := json.NewDecoder(r.Body).Decode(&newProduct)
-	if err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-	}
-
-	newId := len(products) + 1
-	newProduct.ID = newId
-	products = append(products, newProduct)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]any{
-		"status": "success",
-		"data":   newProduct,
-	})
-}
-
-func editProduct(id int, w http.ResponseWriter, r *http.Request) {
-	// find the product
-	for i, product := range products {
-		if id == product.ID {
-			var updatedProduct models.Product
-			err := json.NewDecoder(r.Body).Decode(&updatedProduct)
-			if err != nil {
-				http.Error(w, "bad request", http.StatusBadRequest)
-			}
-
-			updatedProduct.ID = id
-			products[i] = updatedProduct
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{
-				"status": "success",
-				"data":   products[i],
-			})
-			return
-		}
-	}
-
-	http.Error(w, "product is not found", http.StatusNotFound)
-}
-
-func deleteProduct(id int, w http.ResponseWriter, _ *http.Request) {
-	// find the product
-	for i, product := range products {
-		if id == product.ID {
-			products = append(products[:i], products[i+1:]...)
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-	}
-
-	http.Error(w, "product is not found", http.StatusNotFound)
-}
-
-func getProductById(id int, w http.ResponseWriter, _ *http.Request) {
-	for i, product := range products {
-		if id == product.ID {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{
-				"status": "success",
-				"data":   products[i],
-			})
-			return
-		}
-	}
-
-	// didnt found
-	http.Error(w, "product is not found", http.StatusNotFound)
 }
 
 // CATEGORY
@@ -231,35 +145,17 @@ func main() {
 	}
 	defer db.Close(context.Background())
 
+	productRepo := repositories.NewRepository(db)
+	productService := services.NewProductService(productRepo)
+	productHandler := handlers.NewProductHandler(productService)
+
 	fmt.Println("starting kasir-api server....")
 	fmt.Printf("server running on %v", config.PORT)
 
 	// /api/products/{id}
-	http.HandleFunc("/api/products/", func(w http.ResponseWriter, r *http.Request) {
-		idStr := strings.TrimPrefix(r.URL.Path, "/api/products/")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
-		}
-
-		switch r.Method {
-		case http.MethodGet:
-			getProductById(id, w, r)
-		case http.MethodPut:
-			editProduct(id, w, r)
-		case http.MethodDelete:
-			deleteProduct(id, w, r)
-		}
-	})
+	http.HandleFunc("/api/products/", productHandler.HandleProductsDetail)
 	// /api/products
-	http.HandleFunc("/api/products", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			getProducts(w, r)
-		case http.MethodPost:
-			addProduct(w, r)
-		}
-	})
+	http.HandleFunc("/api/products", productHandler.HandleProducts)
 
 	// /api/categories/{id}
 	http.HandleFunc("/api/categories/", func(w http.ResponseWriter, r *http.Request) {
