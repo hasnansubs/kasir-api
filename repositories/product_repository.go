@@ -16,8 +16,8 @@ func NewProductRepository(db *pgx.Conn) *ProductRepository {
 	return &ProductRepository{db: db}
 }
 
-func (repo *ProductRepository) GetAllProducts() (products []models.Product, err error) {
-	query := "SELECT id, name, price, stock FROM products"
+func (repo *ProductRepository) GetAllProducts() (products []models.GetProductResponse, err error) {
+	query := "SELECT p.id, p.name, p.price, p.stock, c.name FROM products p JOIN categories c on p.category_id = c.id"
 	rows, err := repo.db.Query(context.Background(), query)
 	if err != nil {
 		return nil, err
@@ -25,8 +25,8 @@ func (repo *ProductRepository) GetAllProducts() (products []models.Product, err 
 	defer rows.Close()
 
 	for rows.Next() {
-		var product models.Product
-		err := rows.Scan(&product.ID, &product.Name, &product.Price, &product.Stock)
+		var product models.GetProductResponse
+		err := rows.Scan(&product.ID, &product.Name, &product.Price, &product.Stock, &product.Category)
 		if err != nil {
 			return nil, err
 		}
@@ -37,11 +37,12 @@ func (repo *ProductRepository) GetAllProducts() (products []models.Product, err 
 }
 
 func (repo *ProductRepository) AddProduct(newProductRequest models.Product) (id int, err error) {
-	query := "INSERT INTO products (name, price, stock) VALUES (@name, @price, @stock) RETURNING id"
+	query := "INSERT INTO products (name, price, stock, category_id) VALUES (@name, @price, @stock, @categoryId) RETURNING id"
 	args := pgx.NamedArgs{
-		"name":  newProductRequest.Name,
-		"price": newProductRequest.Price,
-		"stock": newProductRequest.Stock,
+		"name":       newProductRequest.Name,
+		"price":      newProductRequest.Price,
+		"stock":      newProductRequest.Stock,
+		"categoryId": newProductRequest.CategoryId,
 	}
 
 	row := repo.db.QueryRow(context.Background(), query, args)
@@ -53,10 +54,10 @@ func (repo *ProductRepository) AddProduct(newProductRequest models.Product) (id 
 	return id, nil
 }
 
-func (repo *ProductRepository) GetProductById(id int) (product models.Product, err error) {
-	query := "SELECT id, name, price, stock FROM products WHERE id=$1"
+func (repo *ProductRepository) GetProductById(id int) (product models.GetProductResponse, err error) {
+	query := "SELECT p.id, p.name, p.price, p.stock, c.name FROM products p JOIN categories c on p.category_id = c.id WHERE p.id=$1"
 	row := repo.db.QueryRow(context.Background(), query, id)
-	err = row.Scan(&product.ID, &product.Name, &product.Price, &product.Stock)
+	err = row.Scan(&product.ID, &product.Name, &product.Price, &product.Stock, &product.Category)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return product, errors.New("NOT_FOUND")
