@@ -12,7 +12,7 @@ type ProductRepository struct {
 	db *pgx.Conn
 }
 
-func NewRepository(db *pgx.Conn) *ProductRepository {
+func NewProductRepository(db *pgx.Conn) *ProductRepository {
 	return &ProductRepository{db: db}
 }
 
