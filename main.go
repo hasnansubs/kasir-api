@@ -60,6 +60,10 @@ func main() {
 	fmt.Println("starting kasir-api server....")
 	fmt.Printf("server running on %v", config.PORT)
 
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("welcome to kasir-api server!"))
+	})
+
 	// /api/products/{id}
 	// /api/products
 	http.HandleFunc("/api/products/", productHandler.HandleProductsDetail)

@@ -1,2 +1,5 @@
 .env
 *.excalidraw
+
+# executable file
+kasir-api
