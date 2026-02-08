@@ -48,7 +48,8 @@ func (h *ProductHandler) HandleProductsDetail(w http.ResponseWriter, r *http.Req
 }
 
 func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
-	products, err := h.service.GetProductsService()
+	name := r.URL.Query().Get("name")
+	products, err := h.service.GetProductsService(name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

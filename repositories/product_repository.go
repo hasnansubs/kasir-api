@@ -16,9 +16,15 @@ func NewProductRepository(db *pgx.Conn) *ProductRepository {
 	return &ProductRepository{db: db}
 }
 
-func (repo *ProductRepository) GetAllProducts() (products []models.GetProductResponse, err error) {
+func (repo *ProductRepository) GetAllProducts(nameFilter string) (products []models.GetProductResponse, err error) {
+	args := []any{}
 	query := "SELECT p.id, p.name, p.price, p.stock, c.name FROM products p JOIN categories c on p.category_id = c.id"
-	rows, err := repo.db.Query(context.Background(), query)
+	if nameFilter != "" {
+		query += " WHERE p.name ILIKE $1"
+		args = append(args, "%"+nameFilter+"%")
+
+	}
+	rows, err := repo.db.Query(context.Background(), query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +75,7 @@ func (repo *ProductRepository) GetProductById(id int) (product models.GetProduct
 }
 
 func (repo *ProductRepository) EditProduct(newProduct models.Product) (product models.Product, err error) {
-	query := "UPDATE products SET name=@name, price=@price, stock=@stock WHERE id=@id RETURNING id, name, price, stock"
+	query := "UPDATE products SET name=@name, price=@price, stock=@stock, category_id=@categoryId WHERE id=@id RETURNING id, name, price, stock"
 	args := pgx.NamedArgs{
 		"name":  newProduct.Name,
 		"price": newProduct.Price,
